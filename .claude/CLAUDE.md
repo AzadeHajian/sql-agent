@@ -1,0 +1,32 @@
+# SQLSpeak — Claude Project Guide
+
+SQLSpeak is a Streamlit app where a LangGraph ReAct agent (Claude or GPT-4o)
+turns natural-language questions into SQL, explores a Supabase/PostgreSQL
+database, runs the query, and explains the result.
+
+This file is an index. Detailed docs live in `.claude/docs/`:
+
+- [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) — folder-by-folder breakdown of the codebase
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the pieces connect (data flow, providers, MCP)
+- [docs/SETUP.md](docs/SETUP.md) — env vars, install, how to run the app and MCP server
+- [docs/DEBUGGING_LOG.md](docs/DEBUGGING_LOG.md) — running log of bugs found/fixed (read before debugging)
+
+## Working agreement for Claude in this repo
+
+1. **Before debugging anything**, check `docs/DEBUGGING_LOG.md` for prior
+   investigations of the same symptom — don't re-diagnose something already
+   solved (or already known-and-open).
+2. **After every debugging session** (whether you fixed it or just diagnosed
+   it), append an entry to `docs/DEBUGGING_LOG.md`: date, symptom, root
+   cause, fix/status, files touched. Do this before ending the turn.
+3. If the fix changes how the project is structured, run, or configured,
+   also update `docs/PROJECT_OVERVIEW.md`, `docs/ARCHITECTURE.md`, or
+   `docs/SETUP.md` as appropriate.
+4. Never write real secret values (API keys, tokens) into any doc — `.env`
+   is gitignored and holds the real credentials. Docs should only reference
+   variable *names*.
+
+## Known open issues
+
+See `docs/DEBUGGING_LOG.md` — there is at least one unresolved import-path
+bug (`tool/` vs `tools`) that will break the app on first run.
