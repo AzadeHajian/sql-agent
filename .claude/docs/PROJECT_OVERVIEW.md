@@ -62,13 +62,15 @@ vendor SDK directly.
 - `__init__.py` — `get_llm(provider)` factory: `"anthropic"` →
   `AnthropicLLM()`, `"openai"` → `OpenAILLM()`, else `ValueError`.
 
-### `tool/`
+### `tools/`
 LangChain `@tool`-decorated functions that talk to Supabase. These are the
 tools the ReAct agent calls.
 
 - `supabase_tools.py`:
   - `_get_client()` — builds a `supabase.Client` from `SUPABASE_URL` +
-    `SUPABASE_ANON_KEY`.
+    `SUPABASE_ANON_KEY`. Raises `ValueError` if either is missing, and
+    wraps `create_client()` in try/except, re-raising as `RuntimeError`
+    on failure.
   - `list_tables(dummy="")` — runs an `execute_sql` RPC that selects
     `table_name` from `information_schema.tables` (schema = `public`).
   - `get_table_schema(table_name)` — selects `column_name`, `data_type`,

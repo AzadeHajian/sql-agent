@@ -28,5 +28,4 @@ This file is an index. Detailed docs live in `.claude/docs/`:
 
 ## Known open issues
 
-See `docs/DEBUGGING_LOG.md` — there is at least one unresolved import-path
-bug (`tool/` vs `tools`) that will break the app on first run.
+None currently open. See `docs/DEBUGGING_LOG.md` for resolved history.

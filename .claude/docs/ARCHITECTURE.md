@@ -8,7 +8,7 @@ User types question in main.py (Streamlit chat form)
         ├─ converts chat_history dicts -> HumanMessage/AIMessage
         ├─ invokes a LangGraph create_react_agent(model, tools, prompt)
         │     model  = llm.get_llm(provider).client     [llm/]
-        │     tools  = SUPABASE_TOOLS                    [tool/__init__.py]
+        │     tools  = SUPABASE_TOOLS                    [tools/__init__.py]
         │     prompt = agent.prompt.get_full_prompt()    [agent/prompt.py]
         │
         │   ReAct loop (driven by the LLM, following task_prompt steps):
@@ -23,7 +23,7 @@ User types question in main.py (Streamlit chat form)
   └─> appended to st.session_state.chat_history, rendered in chat UI
 ```
 
-All four tools call `_get_client()` in `tool/supabase_tools.py`, which
+All four tools call `_get_client()` in `tools/supabase_tools.py`, which
 builds a `supabase.Client` from `SUPABASE_URL` / `SUPABASE_ANON_KEY` and
 issues everything through a single Postgres RPC function named
 `execute_sql` (defined Supabase-side, not in this repo).
@@ -53,22 +53,15 @@ the other provider.
   show the SQL.
 
 These are prompt-level guardrails only — there is no query-parsing layer
-that enforces them in code. `tool/supabase_tools.py` will execute whatever
+that enforces them in code. `tools/supabase_tools.py` will execute whatever
 SQL string the LLM passes to `execute_sql`.
 
 ## MCP server (alternative integration path)
 
 `mcp_server/server.py` wraps the *same* underlying tool functions
-(`tool/supabase_tools.py`) and re-exposes them as MCP tools
+(`tools/supabase_tools.py`) and re-exposes them as MCP tools
 (`list_all_tables`, `get_schema`, `sample_rows`, `run_sql`) via FastMCP.
 This lets any MCP-compatible client (e.g. Claude Desktop, another agent)
 use the Supabase tools without going through the Streamlit `SQLAgent`.
 It is currently a separate entry point (`python -m mcp_server.server`),
 not invoked by `main.py`.
-
-## Known structural issue
-
-Both `agent/agent.py` (`from tools import SUPABASE_TOOLS`) and
-`mcp_server/server.py` (`from tools.supabase_tools import ...`) import
-from a package named `tools`, but the actual directory in this repo is
-`tool/` (singular). See `DEBUGGING_LOG.md` for status.
