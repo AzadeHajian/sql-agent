@@ -60,6 +60,77 @@ the error-wrapping style already used in `llm/anthropic_client.py` and
 
 ---
 
+## 2026-06-13 — Agent says it can't access the list of tables ("configuration or permissions issue")
+
+**Symptom:** Asking the agent anything that requires exploring the database
+(e.g. "check all databases i have in supabase") returns a generic apology:
+"It seems there is an issue with accessing the list of tables in your
+Supabase database. This could be due to a configuration or permissions
+issue."
+
+**Root cause:** All 4 tools in `tools/supabase_tools.py` call
+`client.rpc("execute_sql", {"query": ...})`, but the Supabase project
+(`unsigymegludckhspfpm`) had no `public.execute_sql` Postgres function.
+Direct call to `list_tables.invoke({})` returned:
+`PGRST202: Could not find the function public.execute_sql(query) in the
+schema cache`. The agent's LLM then paraphrased that raw error into the
+generic "permissions issue" message shown to the user.
+
+**Fix/status:** **FIXED.** Created `public.execute_sql(query text)` in the
+Supabase project via the Management API
+(`POST /v1/projects/{id}/database/query`, using `SUPABASE_ACCESS_TOKEN` from
+`.env`). First version hit `42601: syntax error at or near ";"` because the
+tools' SQL strings end with `;` and the function wraps the query in a
+subquery (`from (%s) t`) — a trailing `;` there is invalid. Fixed by stripping
+a trailing `;` (`regexp_replace(trim(query), ';\s*$', '')`) before wrapping.
+Verified all 4 tools (`list_tables`, `get_table_schema`, `get_sample_rows`,
+`execute_sql`) against the live `transaction` table.
+
+**Files involved:** No repo files — this was a Supabase database schema
+change (Postgres function + grants). The function's SQL is now documented in
+`docs/SETUP.md` under "Database setup" so it can be recreated for a fresh
+Supabase project.
+
+---
+
+## 2026-06-13 — Agent refuses to create/populate a table ("I cannot proceed with creating the table directly")
+
+**Symptom:** After the `execute_sql` RPC fix above, asking the agent to
+`CREATE TABLE students (...)` and fill it with sample data — even after the
+user explicitly confirmed authorization — still failed. The agent said
+"the database might have restrictions or specific configurations that are
+causing the CREATE TABLE command to fail" and offered to give the user a
+script to run manually instead.
+
+**Root cause:** The `public.execute_sql` function created earlier always
+wrapped the query as `select coalesce(jsonb_agg(t), '[]'::jsonb) from (%s) t`.
+That wrapping is only valid SQL when `%s` is a `SELECT`/`WITH` (something
+usable as a `FROM`-subquery). For `CREATE TABLE ...`, `INSERT ...`, etc., it
+produced `42601: syntax error at or near "CREATE"`. The agent's LLM
+misreported this raw Postgres syntax error as a "restrictions/permissions"
+problem and fell back to suggesting the user run it manually — which also
+goes against the intended design (the agent should execute SQL itself).
+
+**Fix/status:** **FIXED.**
+1. `public.execute_sql` (Supabase Management API, same as before) now
+   branches: `SELECT`/`WITH` queries are wrapped as before (returns JSON
+   array of rows); everything else is run via plain `execute cleaned` and
+   returns `{"status": "ok"}`. Verified `CREATE TABLE`, `INSERT`, `SELECT`,
+   and `DROP TABLE` all work, and `list_tables` still works.
+2. `agent/prompt.py::task_prompt()` — STEP 5/6 rewritten to explicitly state
+   the agent must call `execute_sql()` itself (never tell the user to run
+   SQL manually / never refuse on "can't execute directly" grounds), and
+   must always show the exact SQL it executed in its response. Also fixed
+   stale tool-name references in the prompt (`list_all_tables`/`get_schema`/
+   `sample_rows`/`run_sql` → the real tool names `list_tables`/
+   `get_table_schema`/`get_sample_rows`/`execute_sql`).
+
+**Files involved:** `agent/prompt.py` (repo). `public.execute_sql` in the
+Supabase project (no repo file — SQL documented in `docs/SETUP.md` under
+"Database setup").
+
+---
+
 ## Template for new entries
 
 ```

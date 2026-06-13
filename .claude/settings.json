@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'python' } | Select-Object ProcessName, Id, StartTime, CPU | Format-Table -AutoSize)",
+      "Bash(rm -f \"c:/Users/azade/ai_agent/sql-agent/.claude/_screenshot_1_initial.png\" \"c:/Users/azade/ai_agent/sql-agent/.claude/_verify_ui.py\")",
+      "Bash(wsl -e bash -c \"cd /mnt/c/Users/azade/ai_agent/sql-agent && .venv/bin/python .claude/_create_execute_sql.py\")",
+      "Bash(wsl -e bash -c 'cd /mnt/c/Users/azade/ai_agent/sql-agent && .venv/bin/python -c \" *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\azade\\ai_agent\\sql-agent\\.claude"
+    ]
+  }
+}
