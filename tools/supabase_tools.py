@@ -31,7 +31,10 @@ def _get_client() -> Client:
     if not key:
         raise ValueError("SUPABASE_ANON_KEY not found in .env")
 
-    return create_client(url, key)
+    try:
+        return create_client(url, key)
+    except Exception as e:
+        raise RuntimeError(f"Failed to create Supabase client: {e}") from e
 
 
 # -----------------------------------------------------------
