@@ -86,3 +86,31 @@ streamlit run main.py
 python -m mcp_server.server
 ```
 
+## Deploying to Streamlit Community Cloud
+
+There is no `.env` file on Streamlit Cloud — secrets are configured via the
+app's **Settings → Secrets** dashboard, as TOML. `main.py` calls
+`st.secrets.load_if_toml_exists()` at startup, which makes Streamlit copy
+every top-level secret into `os.environ`, so all the existing `os.getenv()`
+calls in `agent/`, `llm/`, and `tools/` keep working unchanged.
+
+Paste the same values from your local `.env` into the Secrets box, **quoting
+every value as a string** (so `_maybe_set_environment_variable` copies it —
+unquoted TOML booleans/numbers are not copied to `os.environ`):
+
+```toml
+OPENAI_API_KEY = "sk-..."
+ANTHROPIC_API_KEY = "sk-ant-..."
+LANGSMITH_TRACING = "true"
+LANGSMITH_ENDPOINT = "https://eu.api.smith.langchain.com"
+LANGSMITH_API_KEY = "lsv2_pt_..."
+LANGSMITH_PROJECT = "sqlspeak"
+SUPABASE_URL = "https://<project-id>.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_..."
+SUPABASE_PROJECT_ID = "<project-id>"
+SUPABASE_ACCESS_TOKEN = "sbp_..."
+```
+
+After saving secrets, use "Reboot app" so the new environment variables take
+effect.
+

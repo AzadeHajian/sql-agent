@@ -10,6 +10,14 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
+
+# On Streamlit Community Cloud there is no .env file — secrets are configured
+# via the app's "Secrets" dashboard instead. Accessing st.secrets (if a
+# secrets.toml exists) makes Streamlit copy top-level secrets into
+# os.environ, so the existing os.getenv() calls in agent/, llm/, and tools/
+# keep working unchanged both locally and when deployed.
+st.secrets.load_if_toml_exists()
+
 from agent import SQLAgent
 
 # -----------------------------------------------------------

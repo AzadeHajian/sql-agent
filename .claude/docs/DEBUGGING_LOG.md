@@ -131,6 +131,36 @@ Supabase project (no repo file — SQL documented in `docs/SETUP.md` under
 
 ---
 
+## 2026-06-13 — `ValueError: OPENAI_API_KEY not found in .env` on Streamlit Cloud
+
+**Symptom:** App deployed to Streamlit Community Cloud crashes on startup:
+`ValueError: OPENAI_API_KEY not found in .env` at
+`llm/openai_client.py:28`, raised from `SQLAgent.__init__` ->
+`get_llm("openai")`, called from `main.py:78`.
+
+**Root cause:** All credential lookups go through `os.getenv(...)`
+(populated locally by `python-dotenv`'s `load_dotenv()` reading `.env`).
+`.env` is gitignored and was never uploaded to Streamlit Cloud, so
+`os.environ` had none of these keys. Streamlit Cloud's equivalent is the
+"Secrets" dashboard (`st.secrets`), but nothing in the app ever touched
+`st.secrets`.
+
+**Fix/status:** **FIXED.** `main.py` now calls
+`st.secrets.load_if_toml_exists()` near the top, before `SQLAgent` is
+constructed. Per `streamlit/runtime/secrets.py`, the first time
+`st.secrets` is parsed it copies every top-level string/int/float secret
+into `os.environ` via `_maybe_set_environment_variable` — so as long as the
+Streamlit Cloud "Secrets" box contains the same keys as `.env` (as quoted
+TOML strings), every existing `os.getenv()` call keeps working unchanged.
+`load_if_toml_exists()` swallows `StreamlitSecretNotFoundError` when no
+`secrets.toml` exists (i.e. local dev), so this is a no-op locally.
+Documented the required Secrets format in `docs/SETUP.md` under "Deploying
+to Streamlit Community Cloud".
+
+**Files involved:** `main.py`, `.claude/docs/SETUP.md`.
+
+---
+
 ## Template for new entries
 
 ```
