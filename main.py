@@ -75,15 +75,17 @@ if "current_result" not in st.session_state:
 if "query_count" not in st.session_state:
     st.session_state.query_count = 0
 if "agent" not in st.session_state:
-    st.session_state.agent = SQLAgent(provider="anthropic")
+    st.session_state.agent = SQLAgent(provider="openai")
 if "provider" not in st.session_state:
-    st.session_state.provider = "anthropic"
+    st.session_state.provider = "openai"
+if "last_query" not in st.session_state:
+    st.session_state.last_query = ""
 
 # -----------------------------------------------------------
 # Header
 # -----------------------------------------------------------
 st.markdown('<div class="main-header">🗄️ SQLSpeak</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Talk to your Supabase database in plain English</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">Converts your questions into SQL queries and retrieves the results from Supabase</div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------
 # Sidebar
@@ -96,8 +98,8 @@ with st.sidebar:
     st.markdown("### 🤖 Model")
     provider = st.radio(
         label="Choose LLM provider:",
-        options=["anthropic", "openai"],
-        format_func=lambda x: "🟣 Claude (Anthropic)" if x == "anthropic" else "🟢 GPT-4o (OpenAI)",
+        options=["openai", "anthropic"],
+        format_func=lambda x: "🟢 GPT-4o (OpenAI)" if x == "openai" else "🟣 Claude (Anthropic)",
         index=0,
     )
 
@@ -188,23 +190,14 @@ for message in st.session_state.chat_history:
                         st.code(part)
 
 # -----------------------------------------------------------
-# Query input
+# Query input — pinned to the bottom, submits on Enter
 # -----------------------------------------------------------
-st.markdown("### 🔍 Ask your database anything")
-
-with st.form(key="query_form", clear_on_submit=True):
-    user_query = st.text_area(
-        "Type your question in plain English (Press Ctrl+Enter to send):",
-        placeholder="Example: Show me all users who signed up this month...",
-        height=100,
-        help="Be specific! Mention table names or conditions if you know them."
-    )
-    submit_button = st.form_submit_button("🚀 Run Query", type="primary")
+user_query = st.chat_input("Ask your request...")
 
 # -----------------------------------------------------------
 # Process query
 # -----------------------------------------------------------
-if submit_button and user_query:
+if user_query:
     with st.spinner("🤖 Thinking..."):
         try:
             progress_bar = st.progress(0)
@@ -236,6 +229,7 @@ if submit_button and user_query:
             })
 
             st.session_state.current_result = response
+            st.session_state.last_query = user_query
             st.session_state.query_count += 1
 
             progress_bar.progress(100)
@@ -261,7 +255,7 @@ if st.session_state.current_result:
             from datetime import datetime
             filename = f"sqlspeak_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
             with open(filename, "w") as f:
-                f.write(f"Query: {user_query}\n\n")
+                f.write(f"Query: {st.session_state.last_query}\n\n")
                 f.write(f"Result:\n{st.session_state.current_result}")
             st.success(f"✅ Saved to {filename}")
     with col3:
