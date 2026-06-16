@@ -1,5 +1,7 @@
 # 🗄️ SQLSpeak — AI Text-to-SQL Assistant
 
+![Component Architecture](pic/architecture.png)
+
 SQLSpeak is a Streamlit app that lets you talk to a Supabase/PostgreSQL
 database in plain English. A [LangGraph](https://www.langchain.com/langgraph)
 ReAct agent (powered by **GPT-4o** or **Claude**) explores your database,
