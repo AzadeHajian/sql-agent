@@ -1,4 +1,5 @@
 import os
+import sys
 import traceback
 from typing import List, Dict
 from dotenv import load_dotenv
@@ -8,6 +9,12 @@ from llm import get_llm
 from agent.prompt import get_full_prompt
 
 load_dotenv()
+
+# Absolute path to the tool server — works locally and on Streamlit Cloud
+# regardless of the current working directory.
+_TOOL_SERVER = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "tools", "supabase_tool.py")
+)
 
 
 async def agent_instance(
@@ -30,8 +37,11 @@ async def agent_instance(
     mcp_tools = MultiServerMCPClient(
         {
             "supabase_tool": {
-                "command": "python",
-                "args": ["tools/supabase_tool.py"],
+                # sys.executable ensures we use the same Python interpreter
+                # that is running the app — critical on Streamlit Cloud where
+                # a bare "python" command may not be on PATH.
+                "command": sys.executable,
+                "args": [_TOOL_SERVER],
                 "transport": "stdio",
             },
         }
