@@ -1,54 +1,38 @@
-# tools/supabase_tools.py
-# -----------------------------------------------------------
-# LangChain @tool functions that connect to Supabase.
-# The agent uses these tools to explore the database
-# and generate + execute SQL queries.
-#
-# Flow the agent follows:
-#   1. list_tables()         → what tables exist?
-#   2. get_table_schema()    → what columns does the table have?
-#   3. get_sample_rows()     → what does the data look like?
-#   4. execute_sql()         → run the final SQL query
-# -----------------------------------------------------------
+#!/usr/bin/env python3
+"""
+Supabase MCP Server - A Model Context Protocol server for Supabase/PostgreSQL
+Provides tools to explore and query the database via stdio transport.
+
+Spawned automatically as a subprocess by mcp_server/client.py — no need
+to run this file manually.
+"""
 
 import os
 from dotenv import load_dotenv
-from langchain_core.tools import tool
+from fastmcp import FastMCP
 from supabase import create_client, Client
 
 load_dotenv()
 
+mcp = FastMCP("supabase")
 
-# -----------------------------------------------------------
-# Supabase client — created once, reused by all tools
-# -----------------------------------------------------------
+
 def _get_client() -> Client:
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_ANON_KEY")
-
     if not url:
         raise ValueError("SUPABASE_URL not found in .env")
     if not key:
         raise ValueError("SUPABASE_ANON_KEY not found in .env")
-
-    try:
-        return create_client(url, key)
-    except Exception as e:
-        raise RuntimeError(f"Failed to create Supabase client: {e}") from e
+    return create_client(url, key)
 
 
-# -----------------------------------------------------------
-# Tool 1: List all tables
-# -----------------------------------------------------------
-@tool
-def list_tables(dummy: str = "") -> str:
+@mcp.tool()
+def list_tables() -> str:
     """
     List all tables in the Supabase database.
     Always call this first before writing any SQL query
     so you know what tables are available.
-
-    Returns:
-        A list of table names.
     """
     try:
         client = _get_client()
@@ -65,10 +49,7 @@ def list_tables(dummy: str = "") -> str:
         return f"Error listing tables: {e}"
 
 
-# -----------------------------------------------------------
-# Tool 2: Get columns and types of a specific table
-# -----------------------------------------------------------
-@tool
+@mcp.tool()
 def get_table_schema(table_name: str) -> str:
     """
     Get the column names and data types of a specific table.
@@ -77,9 +58,6 @@ def get_table_schema(table_name: str) -> str:
 
     Args:
         table_name: Name of the table to inspect.
-
-    Returns:
-        Column names, data types, and nullable info.
     """
     try:
         client = _get_client()
@@ -95,7 +73,6 @@ def get_table_schema(table_name: str) -> str:
                 ORDER BY ordinal_position;
             """
         }).execute()
-
         if not response.data:
             return f"Table '{table_name}' not found or has no columns."
         return str(response.data)
@@ -103,10 +80,7 @@ def get_table_schema(table_name: str) -> str:
         return f"Error getting schema for '{table_name}': {e}"
 
 
-# -----------------------------------------------------------
-# Tool 3: Preview first rows of a table
-# -----------------------------------------------------------
-@tool
+@mcp.tool()
 def get_sample_rows(table_name: str) -> str:
     """
     Get the first 5 rows of a table as a preview.
@@ -115,16 +89,12 @@ def get_sample_rows(table_name: str) -> str:
 
     Args:
         table_name: Name of the table to preview.
-
-    Returns:
-        First 5 rows of the table.
     """
     try:
         client = _get_client()
         response = client.rpc("execute_sql", {
             "query": f"SELECT * FROM {table_name} LIMIT 5;"
         }).execute()
-
         if not response.data:
             return f"Table '{table_name}' is empty or does not exist."
         return str(response.data)
@@ -132,10 +102,7 @@ def get_sample_rows(table_name: str) -> str:
         return f"Error getting sample rows for '{table_name}': {e}"
 
 
-# -----------------------------------------------------------
-# Tool 4: Execute a SQL query
-# -----------------------------------------------------------
-@tool
+@mcp.tool()
 def execute_sql(query: str) -> str:
     """
     Execute a raw SQL query against the Supabase database.
@@ -147,18 +114,18 @@ def execute_sql(query: str) -> str:
 
     Args:
         query: The SQL query to execute.
-
-    Returns:
-        Query results or an error message.
     """
     try:
         client = _get_client()
         response = client.rpc("execute_sql", {
             "query": query
         }).execute()
-
         if not response.data:
             return "Query executed successfully but returned no results."
         return str(response.data)
     except Exception as e:
         return f"SQL execution error: {e}"
+
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
