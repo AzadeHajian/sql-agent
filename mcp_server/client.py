@@ -43,6 +43,12 @@ async def agent_instance(
                 "command": sys.executable,
                 "args": [_TOOL_SERVER],
                 "transport": "stdio",
+                # Explicitly forward all env vars so the subprocess sees
+                # SUPABASE_URL, SUPABASE_ANON_KEY, etc. — required on
+                # Streamlit Cloud where secrets live in os.environ of the
+                # parent but are not automatically inherited by child processes
+                # spawned through the MCP stdio transport layer.
+                "env": dict(os.environ),
             },
         }
     )
