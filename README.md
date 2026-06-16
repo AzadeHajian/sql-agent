@@ -57,18 +57,35 @@ created in the project's Postgres database:
 
 ## 🏗️ How it works
 
-```
-User message (Streamlit chat)
-  → SQLAgent.run()                         agent/agent.py
-      → LangGraph ReAct agent
-          1. list_tables()                 → information_schema.tables
-          2. get_table_schema(table)       → information_schema.columns
-          3. get_sample_rows(table)        → SELECT * FROM table LIMIT 5
-          4. (LLM writes the SQL)
-          5. execute_sql(query)            → runs it via a Supabase RPC
-          6. (LLM explains the SQL + result)
-  → response shown in chat
-```
+### Component architecture
+
+![Component architecture](pic/architecture.png)
+
+The app is built in four layers. The **Streamlit UI** collects the user's
+question and shows the answer. The **SQLAgent** bridges the synchronous
+Streamlit world to the async MCP layer. The **MCP Client + ReAct Agent**
+spawns `tools/supabase_tool.py` as a subprocess, loads its four tools over
+stdio, and drives a LangGraph ReAct loop powered by the chosen **LLM**
+(GPT-4o or Claude). The **FastMCP Tool Server** translates each tool call
+into a Supabase RPC call that executes SQL on the PostgreSQL database.
+
+### Data flow — what happens per query
+
+![Data flow per query](pic/data_flow.png)
+
+Each user question goes through seven steps:
+
+1. **User types** a question in the Streamlit chat box.
+2. **`SQLAgent.run()`** wraps the call in `asyncio.run()` to bridge sync → async.
+3. The **MCP client** spawns `tools/supabase_tool.py` as a subprocess (stdio).
+4. **4 MCP tools** are loaded into LangGraph's ReAct agent.
+5. The **ReAct loop** asks the LLM which tool to call next; the LLM
+   explores the database step-by-step (`list_tables` → `get_table_schema`
+   → `get_sample_rows`).
+6. The **LLM composes the SQL** and calls `execute_sql()` — Supabase
+   returns the rows.
+7. The **answer** (SQL + plain-English explanation + results) is returned
+   to the Streamlit chat.
 
 The system prompt (`agent/prompt.py`) tells the agent to always explore
 before writing SQL, to execute SQL itself (never ask the user to run it),
@@ -86,17 +103,17 @@ and [`.claude/docs/PROJECT_OVERVIEW.md`](.claude/docs/PROJECT_OVERVIEW.md).
 | Agent | [LangGraph](https://www.langchain.com/langgraph) `create_react_agent` |
 | LLMs | OpenAI GPT-4o / Anthropic Claude (via LangChain) |
 | Database | [Supabase](https://supabase.com/) (PostgreSQL) |
-| Alternate integration | [FastMCP](https://github.com/jlowin/fastmcp) server |
+| Tool protocol | [FastMCP](https://github.com/jlowin/fastmcp) + [langchain-mcp-adapters](https://github.com/langchain-ai/langchain-mcp-adapters) (stdio) |
 | Tracing | LangSmith (optional) |
 
 ## 📁 Project structure
 
 ```
-main.py            # Streamlit UI (only file with UI code)
-agent/             # SQLAgent class + system prompts
-llm/               # Provider abstraction (Anthropic / OpenAI)
-tools/             # @tool functions that call Supabase
-mcp_server/        # FastMCP server exposing the same tools over MCP
+main.py                       # Streamlit UI (only file with UI code)
+agent/                        # SQLAgent class + system prompts
+llm/                          # Provider abstraction (Anthropic / OpenAI)
+tools/supabase_tool.py        # FastMCP stdio server — the 4 Supabase tools
+mcp_server/client.py          # Async MCP client + LangGraph ReAct agent
 ```
 
 See [`.claude/docs/PROJECT_OVERVIEW.md`](.claude/docs/PROJECT_OVERVIEW.md)
@@ -143,13 +160,9 @@ streamlit run main.py
 ```
 
 Open the app, pick a provider in the sidebar (GPT-4o is selected by
-default), and start chatting at the bottom of the page.
-
-### Run the MCP server (optional)
-
-```bash
-python -m mcp_server.server
-```
+default), and start chatting at the bottom of the page. The MCP tool
+server (`tools/supabase_tool.py`) is spawned automatically as a
+subprocess — no separate terminal needed.
 
 ## 💬 Example questions
 
