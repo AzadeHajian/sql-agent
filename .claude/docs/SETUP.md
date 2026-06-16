@@ -4,7 +4,7 @@
 - Python 3.10 (matches `.venv/lib/python3.10`)
 - A Supabase project with a Postgres RPC function called `execute_sql`
   (callable as `client.rpc("execute_sql", {"query": "..."})`) — required by
-  every tool in `tools/supabase_tools.py`. See "Database setup" below.
+  every tool in `tools/supabase_tool.py`. See "Database setup" below.
 
 ## Database setup
 
@@ -71,20 +71,20 @@ pip install -r requirements.txt
 | `LANGSMITH_ENDPOINT` | LangChain/LangGraph | e.g. `https://eu.api.smith.langchain.com` |
 | `LANGSMITH_API_KEY` | LangChain/LangGraph | |
 | `LANGSMITH_PROJECT` | LangChain/LangGraph | e.g. `sqlspeak` |
-| `SUPABASE_URL` | `tools/supabase_tools.py` | project REST URL |
-| `SUPABASE_ANON_KEY` | `tools/supabase_tools.py` | anon/public key used by `create_client` |
+| `SUPABASE_URL` | `tools/supabase_tool.py` | project REST URL |
+| `SUPABASE_ANON_KEY` | `tools/supabase_tool.py` | anon/public key used by `create_client` |
 | `SUPABASE_ACCESS_TOKEN` | (informational/CLI use) | not read directly by app code |
 | `SUPABASE_PROJECT_ID` | (informational) | not read directly by app code |
 
-## Run the Streamlit app
+## Run the app
+
 ```bash
 streamlit run main.py
 ```
 
-## Run the MCP server (separate entry point)
-```bash
-python -m mcp_server.server
-```
+The MCP tool server (`tools/supabase_tool.py`) is spawned automatically as a
+subprocess when the first query is submitted — no separate terminal needed.
+This also means the app works on **Streamlit Cloud** without any extra setup.
 
 ## Deploying to Streamlit Community Cloud
 
